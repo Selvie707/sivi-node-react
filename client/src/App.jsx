@@ -65,9 +65,9 @@ function App() {
 
         // Tambahkan teks dengan latar belakang
         ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-        ctx.fillRect(x, y - 20, ctx.measureText(det.class).width + 10, 20);
+        ctx.fillRect(x, y - 20, ctx.measureText(det.classId.toString()).width + 10, 20); // Menampilkan ID Kelas
         ctx.fillStyle = 'white';
-        ctx.fillText(det.class, x + 5, y - 5);
+        ctx.fillText(det.classId.toString(), x + 5, y - 5); // Tampilkan ID kelas
       });
     }
   }, [detections]);
@@ -80,7 +80,7 @@ function App() {
       <div>
         <h2>Detected Gesture:</h2>
         <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
-          {detections.length > 0 ? detections[0].class : 'Waiting...'}
+          {detections.length > 0 ? `Class ID: ${detections[0].classId}` : 'Waiting...'}
         </p>
       </div>
     </div>
