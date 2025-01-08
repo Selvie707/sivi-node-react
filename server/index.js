@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import * as ort from 'onnxruntime-node';
 import { createCanvas, Image } from 'canvas';
 import cors from 'cors';
+import util from 'util';
 
 const app = express();
 
@@ -78,7 +79,7 @@ function postprocess(results, width, height) {
   const outputKey = Object.keys(results)[0]; // Ambil key pertama dari hasil model
   console.log('Model Output Key:', outputKey);
 
-  const detections = results[outputKey]?.data; // Ambil data dari key tersebut
+  const detections = results[outputKey]?.cpuData; // Ambil data dari key tersebut
   if (!detections) {
     throw new Error('Output tensor tidak ditemukan atau tidak valid.');
   }
