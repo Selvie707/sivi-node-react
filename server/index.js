@@ -4,7 +4,6 @@ import { Server } from 'socket.io';
 import * as ort from 'onnxruntime-node';
 import { createCanvas, Image } from 'canvas';
 import cors from 'cors';
-import util from 'util';
 
 const app = express();
 
@@ -65,6 +64,7 @@ function preprocess(image) {
   const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
   const floatData = new Float32Array(targetWidth * targetHeight * 3);
 
+  // Normalize pixel data
   for (let i = 0; i < targetWidth * targetHeight; i++) {
     floatData[i * 3] = imageData.data[i * 4] / 255.0; // R
     floatData[i * 3 + 1] = imageData.data[i * 4 + 1] / 255.0; // G
@@ -76,19 +76,23 @@ function preprocess(image) {
 
 // Postprocessing: Filter hasil dan rescale bounding box
 function postprocess(results, width, height) {
-  const outputKey = Object.keys(results)[0]; // Ambil key pertama dari hasil model
+  const outputKey = Object.keys(results)[0];
   console.log('Model Output Key:', outputKey);
 
-  const detections = results[outputKey]?.cpuData; // Ambil data dari key tersebut
+  const detections = results[outputKey]?.cpuData;
   if (!detections) {
     throw new Error('Output tensor tidak ditemukan atau tidak valid.');
   }
 
-  const threshold = 0.5;
+  const threshold = 0.1; // Anda bisa mengubah threshold jika diperlukan
   const filteredDetections = [];
 
   for (let i = 0; i < detections.length; i += 6) {
     const [x1, y1, x2, y2, score, classId] = detections.slice(i, i + 6);
+    
+    // Log setiap deteksi untuk memeriksa nilai score
+    console.log(`Deteksi ${i / 6}: Score = ${score}`);
+
     if (score > threshold) {
       filteredDetections.push({
         classId: Math.round(classId),
@@ -102,6 +106,9 @@ function postprocess(results, width, height) {
       });
     }
   }
+
+  console.log("Filtered detections:", filteredDetections);
+
   return filteredDetections;
 }
 
@@ -112,9 +119,18 @@ async function processFrame(frameData) {
   return new Promise((resolve, reject) => {
     image.onload = async () => {
       try {
+        // Preprocess image dan buat tensor untuk input
         const inputTensor = preprocess(image);
-        const results = await session.run({ images: inputTensor }); // Sesuaikan nama input
+        console.log('Input Tensor Shape:', inputTensor.dims);
+
+        // Jalankan inferensi
+        const results = await session.run({ images: inputTensor });
+        console.log("Results after inference:", results);
+
+        // Log hasil inferensi
         const detections = postprocess(results, image.width, image.height);
+        console.log("Detections after postprocessing:", detections);
+
         resolve(detections);
       } catch (err) {
         reject(`Error during inference: ${err}`);
@@ -131,13 +147,16 @@ io.on('connection', (socket) => {
   console.log('User connected');
 
   socket.on('videoFrame', async (frame) => {
+    console.log('Received frame:', frame); // Log frame yang diterima
+  
     try {
       const detections = await processFrame(frame);
+      console.log("Sending detections:", detections); // Log hasil deteksi yang dikirim ke frontend
       socket.emit('modelOutput', detections);
     } catch (err) {
       console.error('Error processing frame:', err);
     }
-  });
+  });  
 
   socket.on('disconnect', () => {
     console.log('User disconnected');
